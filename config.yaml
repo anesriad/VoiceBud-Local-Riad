@@ -1,8 +1,23 @@
 stt:
-  engine: faster-whisper      # faster-whisper | mlx-whisper (optional faster path)
-  model: small.en             # tiny.en | base | small | medium | large-v3
-  language: null              # null = auto-detect, or e.g. "en"
-  compute_type: int8          # int8 is fastest on CPU for CTranslate2
+  engine: mlx-whisper         # mlx-whisper (Apple GPU, best) | faster-whisper (CPU)
+  # mlx-whisper: an mlx-community repo, e.g. mlx-community/whisper-large-v3-turbo
+  # faster-whisper: tiny.en | base.en | small.en | medium.en | large-v3
+  model: mlx-community/whisper-large-v3-turbo
+  language: en                # "en" avoids misdetecting the language; null = auto-detect
+  compute_type: int8          # faster-whisper only
+  # names and jargon the model should spell right. Add your own, then restart VoiceBud.
+  vocabulary:
+    - VoiceBud
+    - Ollama
+    - Claude
+    - Claude Code
+    - Fable
+    - Upwork
+    - LinkedIn
+    - YouTube
+    - CRM
+    - AI consultancy
+    - Power BI
 
 llm:
   enabled: true
@@ -19,6 +34,7 @@ llm:
     - Remove filler words (um, uh, you know, "like" used as filler) and accidental repeated words.
     - Fix punctuation and capitalization. Split run-on speech into proper sentences.
     - Fix small grammar slips only (e.g. "things that gives" -> "things that give").
+    - Never change how a word is spelled, and never replace a word with a different one.
     - Group sentences into paragraphs of 2 to 4 sentences, separated by a blank line.
       Text of one or two sentences stays a single paragraph.
     - If the text starts with a greeting (Hi X, Hello X, Dear X), put the greeting alone on

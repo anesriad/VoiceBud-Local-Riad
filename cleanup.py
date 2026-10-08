@@ -10,8 +10,9 @@ import requests
 class Cleaner:
     RECHECK_SECONDS = 30  # how long an Ollama availability check is trusted
 
-    def __init__(self, cfg):
+    def __init__(self, cfg, vocabulary=None):
         self.cfg = cfg
+        self.vocabulary = list(vocabulary or [])
         self.enabled = bool(cfg.get("enabled", True))
         self.model = cfg["model"]
         self.base_url = cfg.get("base_url", "http://localhost:11434").rstrip("/")
@@ -61,7 +62,11 @@ class Cleaner:
 
     # --- cleanup ---
     def _chat(self, text, temperature):
-        messages = [{"role": "system", "content": self.cfg.get("system_prompt", "")}]
+        system = self.cfg.get("system_prompt", "")
+        if self.vocabulary:
+            system += ("\nThese names and terms are already spelled correctly. Never change, "
+                       "split or respell them: " + ", ".join(self.vocabulary) + ".")
+        messages = [{"role": "system", "content": system}]
         if self.cfg.get("example_input") and self.cfg.get("example_output"):
             # one worked example: small models copy the format much better than they follow rules
             messages += [
@@ -92,6 +97,7 @@ class Cleaner:
         try:
             for temperature in (float(self.cfg.get("temperature", 0.1)), 0.0):
                 cleaned = normalize(self._chat(text, temperature), text)
+                cleaned = restore_vocabulary(text, cleaned, self.vocabulary)
                 ratio = similarity(text, cleaned)
                 if cleaned and ratio >= self.min_similarity:
                     return cleaned
@@ -111,6 +117,26 @@ def _words(s):
 def similarity(raw, cleaned):
     """Word-level similarity (0-1). Filler removal and punctuation barely move it; rewording does."""
     return difflib.SequenceMatcher(None, _words(raw), _words(cleaned), autojunk=False).ratio()
+
+
+def restore_vocabulary(raw, out, vocabulary):
+    """Put back vocabulary words the LLM respelled (e.g. "Ollama missing" -> "Olling missing")."""
+    vocab = {w.lower() for term in vocabulary for w in _words(term)}
+    if not vocab:
+        return out
+    raw_tokens = re.findall(r"[A-Za-z0-9']+", raw.replace("\u2019", "'"))
+    out_matches = list(re.finditer(r"[A-Za-z0-9']+", out))
+    sm = difflib.SequenceMatcher(None, [t.lower() for t in raw_tokens],
+                                 [m.group().lower() for m in out_matches], autojunk=False)
+    fixes = []
+    for op, i1, i2, j1, j2 in sm.get_opcodes():
+        if op == "replace" and i2 - i1 == j2 - j1:
+            for r, m in zip(raw_tokens[i1:i2], out_matches[j1:j2]):
+                if r.lower() in vocab:
+                    fixes.append((m.start(), m.end(), r))
+    for start, end, word in reversed(fixes):
+        out = out[:start] + word + out[end:]
+    return out
 
 
 def normalize(out, raw):

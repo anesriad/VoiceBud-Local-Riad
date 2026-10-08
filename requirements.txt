@@ -7,3 +7,4 @@ pyobjc-framework-ApplicationServices
 pyyaml
 requests
 numpy
+mlx-whisper

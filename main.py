@@ -7,8 +7,12 @@ Setup (5 lines):
   ollama serve   (in another terminal, if not already running)
   python main.py
 """
+import os
 import threading
 import time
+import wave
+
+import numpy as np
 
 import yaml
 
@@ -19,6 +23,20 @@ from hotkey import PushToTalk
 from transcribe import Transcriber
 
 APP_NAME = "VoiceBud"
+LAST_RECORDING = os.path.expanduser("~/Library/Caches/VoiceBud/last.wav")
+
+
+def save_last_recording(audio, sample_rate):
+    """Keep only the latest dictation on disk (local) so transcription issues can be replayed."""
+    try:
+        os.makedirs(os.path.dirname(LAST_RECORDING), exist_ok=True)
+        with wave.open(LAST_RECORDING, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(sample_rate)
+            w.writeframes((np.clip(audio, -1, 1) * 32767).astype(np.int16).tobytes())
+    except Exception as e:
+        print(f"(could not save last recording: {e})")
 
 
 def check_permissions():
@@ -85,7 +103,7 @@ def main():
 
     print(f"Loading STT model ({cfg['stt']['model']})...")
     stt = Transcriber(cfg["stt"])
-    cleaner = Cleaner(cfg["llm"])
+    cleaner = Cleaner(cfg["llm"], vocabulary=cfg["stt"].get("vocabulary"))
     rec = Recorder(
         sample_rate=cfg["audio"]["sample_rate"],
         channels=cfg["audio"]["channels"],
@@ -100,10 +118,12 @@ def main():
 
     def process(audio):
         t0 = time.time()
+        save_last_recording(audio, cfg["audio"]["sample_rate"])
         raw = stt.transcribe(audio)
         if not raw:
             print("(no speech detected)")
             return
+        print(f'  raw: "{raw}"')
         text = cleaner.clean(raw)
         inject.inject(text, cfg["inject"])
         print(f'→ "{text}"  ({time.time() - t0:.2f}s)')
