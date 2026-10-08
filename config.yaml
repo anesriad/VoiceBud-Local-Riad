@@ -1,6 +1,6 @@
 stt:
   engine: faster-whisper      # faster-whisper | mlx-whisper (optional faster path)
-  model: tiny.en              # tiny.en | base | small | medium | large-v3
+  model: small.en             # tiny.en | base | small | medium | large-v3
   language: null              # null = auto-detect, or e.g. "en"
   compute_type: int8          # int8 is fastest on CPU for CTranslate2
 
@@ -11,12 +11,36 @@ llm:
   base_url: http://localhost:11434
   temperature: 0.1
   min_words_for_cleanup: 10   # utterances under this word count skip Ollama entirely
+  min_similarity: 0.8         # below this word overlap the LLM reworded too much -> keep raw text
+  keep_alive: 30m             # keep the model loaded so cleanup stays fast
   system_prompt: |
-    You are a transcript cleaner. You receive raw speech-to-text output.
-    Your ONLY job: remove filler words (um, uh, like, you know), fix
-    capitalization, and fix punctuation. Output the cleaned text and NOTHING else.
-    NEVER rewrite, rephrase, translate, summarize, answer questions, or add
-    content. If the text is already clean, return it unchanged.
+    You format dictated speech into clean written text. You are an editor, not a writer.
+    Rules:
+    - Remove filler words (um, uh, you know, "like" used as filler) and accidental repeated words.
+    - Fix punctuation and capitalization. Split run-on speech into proper sentences.
+    - Fix small grammar slips only (e.g. "things that gives" -> "things that give").
+    - Group sentences into paragraphs of 2 to 4 sentences, separated by a blank line.
+      Text of one or two sentences stays a single paragraph.
+    - If the text starts with a greeting (Hi X, Hello X, Dear X), put the greeting alone on
+      the first line. Put a sign-off (Thanks, Best, Cheers) alone on the last line.
+    - Keep every word the speaker said, in the same order, except fillers and accidental repeats.
+      Do NOT rephrase, summarize, answer, or add anything. If a phrase sounds wrong or unclear,
+      leave it exactly as spoken.
+    - Do not use em dashes, semicolons, bullet points or markdown.
+    - Output only the formatted text.
+  example_input: >-
+    hey sam um thanks for getting back to me so I had a look at the report and I think the
+    numbers look good but uh the second chart is a bit confusing because the the labels overlap
+    and you can't really tell which line is which so maybe we could just split it into two charts
+    anyway let me know when you're free to chat thanks
+  example_output: |-
+    Hey Sam,
+
+    Thanks for getting back to me. I had a look at the report and I think the numbers look good, but the second chart is a bit confusing because the labels overlap and you can't really tell which line is which.
+
+    So maybe we could just split it into two charts. Anyway, let me know when you're free to chat.
+
+    Thanks
 
 hotkey:
   # single key (alt_r, ctrl_r, f13) or a chord like "ctrl+alt".
