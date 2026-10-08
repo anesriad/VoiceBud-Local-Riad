@@ -130,10 +130,14 @@ def restore_vocabulary(raw, out, vocabulary):
                                  [m.group().lower() for m in out_matches], autojunk=False)
     fixes = []
     for op, i1, i2, j1, j2 in sm.get_opcodes():
-        if op == "replace" and i2 - i1 == j2 - j1:
+        if op != "replace":
+            continue
+        if i2 - i1 == j2 - j1:
             for r, m in zip(raw_tokens[i1:i2], out_matches[j1:j2]):
                 if r.lower() in vocab:
                     fixes.append((m.start(), m.end(), r))
+        elif i2 - i1 == 1 and raw_tokens[i1].lower() in vocab:  # one word split up ("Oll-ama")
+            fixes.append((out_matches[j1].start(), out_matches[j2 - 1].end(), raw_tokens[i1]))
     for start, end, word in reversed(fixes):
         out = out[:start] + word + out[end:]
     return out

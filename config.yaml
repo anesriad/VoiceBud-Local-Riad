@@ -6,18 +6,76 @@ stt:
   language: en                # "en" avoids misdetecting the language; null = auto-detect
   compute_type: int8          # faster-whisper only
   # names and jargon the model should spell right. Add your own, then restart VoiceBud.
+  # Whisper only reads ~220 tokens of this (~60 terms). Skip words it already knows (Python, SQL...).
   vocabulary:
+    # AI / LLM
+    - Anthropic
+    - Gemini
+    - Qwen
+    - Hugging Face
+    - Cursor
+    - LLM
+    - RAG
+    - retrieval
+    - embeddings
+    - vector database
+    - Pinecone
+    - pgvector
+    - LangChain
+    - LangGraph
+    - LlamaIndex
+    - MCP
+    - agentic
+    - fine-tuning
+    - prompt engineering
+    - n8n
+    - Zapier
+    # data science / engineering
+    - pandas
+    - NumPy
+    - scikit-learn
+    - PyTorch
+    - XGBoost
+    - PostgreSQL
+    - BigQuery
+    - Databricks
+    - dbt
+    - Power BI
+    - MLOps
+    - MLflow
+    - A/B testing
+    - API
+    - FastAPI
+    - Streamlit
+    - GCP
+    - Supabase
+    - Vercel
+    - Apps Script
+    # business
+    - CRM
+    - HubSpot
+    - Airtable
+    - ETL
+    - SaaS
+    - SMB
+    # your most-used terms LAST: whisper weighs the end of this list most
     - VoiceBud
-    - Ollama
-    - Claude
-    - Claude Code
     - Fable
     - Upwork
-    - LinkedIn
-    - YouTube
-    - CRM
+    - vidIQ
+    - Gamma
     - AI consultancy
-    - Power BI
+    - Claude
+    - Claude Code
+    - Codex
+    - Ollama
+  # fixed corrections for words whisper keeps mishearing (whole words, case-insensitive)
+  replacements:
+    Alima: Ollama
+    Olama: Ollama
+    Gvector: pgvector
+    voice bot: VoiceBud
+    voicebot: VoiceBud
 
 llm:
   enabled: true

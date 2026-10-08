@@ -1,4 +1,6 @@
 """Local STT: mlx-whisper on the Apple GPU (default) or faster-whisper (CTranslate2) on CPU."""
+import re
+
 import numpy as np
 from faster_whisper.vad import get_speech_timestamps
 
@@ -15,6 +17,8 @@ class Transcriber:
         # which biases spelling without forcing the words in.
         vocab = cfg.get("vocabulary") or []
         self._prompt = ", ".join(vocab) + "." if vocab else None
+        self._fixes = [(re.compile(rf"\b{re.escape(k)}\b", re.IGNORECASE), v)
+                       for k, v in (cfg.get("replacements") or {}).items()]
         engine = cfg.get("engine", "faster-whisper")
         if engine == "mlx-whisper":
             import mlx_whisper  # Apple GPU path
@@ -22,6 +26,11 @@ class Transcriber:
             self._model = None
             self._repo = cfg.get("model", "mlx-community/whisper-large-v3-turbo")
             self._mlx.transcribe(np.zeros(16000, dtype=np.float32), path_or_hf_repo=self._repo)  # load + warm up
+            if self._prompt:
+                from mlx_whisper.tokenizer import get_tokenizer
+                n = len(get_tokenizer(multilingual=True, language="en").encode(" " + self._prompt))
+                if n > 223:  # whisper keeps only the LAST 223 prompt tokens
+                    print(f"Vocabulary is {n} tokens; whisper ignores the first {n - 223}. Trim stt.vocabulary.")
         else:
             from faster_whisper import WhisperModel
             self._mlx = None
@@ -44,7 +53,7 @@ class Transcriber:
                 language=self.cfg.get("language"),
                 initial_prompt=self._prompt,
             )
-            return result.get("text", "").strip()
+            return self._fix(result.get("text", "").strip())
         segments, _ = self._model.transcribe(
             audio,
             language=self.cfg.get("language"),
@@ -52,4 +61,9 @@ class Transcriber:
             beam_size=1,
             initial_prompt=self._prompt,
         )
-        return " ".join(seg.text.strip() for seg in segments).strip()
+        return self._fix(" ".join(seg.text.strip() for seg in segments).strip())
+
+    def _fix(self, text):
+        for pattern, word in self._fixes:
+            text = pattern.sub(word, text)
+        return text
