@@ -93,8 +93,47 @@ The ctrl+alt chord clashes with another tool I use. Switch it to ctrl+shift. (Av
 
 ---
 
+## Prompt 6 — when it stops capturing audio
+
+```
+There's an issue with VoiceBud. It doesn't capture any audio and nothing is transcribed. I press ctrl+shift as usual, the UI appears, I speak but nothing is captured. I haven't changed anything. Find out what the issue is.
+```
+Then:
+```
+Yes, fix it permanently, because I sometimes speak from AirPods, sometimes in loud places, sometimes just from the Mac.
+```
+
+> What it found: the mic stream was opened once at startup and silently died when the audio device changed (CoreAudio error -10863). The fix makes `audio.py` follow the macOS default input, reopen dead streams with backoff, and open Bluetooth mics only while recording (keeping the AirPods mic open all the time forces them into low-quality call audio).
+
+---
+
+## Prompt 7 — punctuation and paragraphs without AI rewording
+
+```
+I notice the messages often look clunky: no punctuation, no new paragraphs. Is this because the LLM isn't good enough or because the cleanup prompt isn't? I want to keep the essence of my words (no AI-style rewording) but I want good punctuation and paragraphs. How can we fix this?
+```
+
+> What it found: cleanup was **off**. VoiceBud started at login before Ollama and disabled cleanup until restart. The fix: re-check Ollama lazily, a chat prompt with one worked example (small models copy a format better than they follow rules), paragraph rules, stripping em dashes and curly quotes, and a guard that falls back to the raw transcript if the LLM changes too many words. The LLM stayed `qwen3:4b-instruct`.
+
+---
+
+## Prompt 8 — better speech recognition + your own jargon
+
+```
+This is what VoiceBud transcribed in a silent room: "in tax" for "intact", "voicebot" for "VoiceBud", "Obama" for "Ollama". Imagine in a coffee shop. Improve the transcription quality.
+```
+Then:
+```
+Add a bunch of keywords I use as a data scientist, AI engineer and AI consultant (API, RAG, retrieval, Claude Code, Codex, etc.) so it recognizes them. Maybe a list of ~50 keywords and tools.
+```
+
+> What it found: the mistakes came from speech-to-text, not the LLM. Switching to Whisper large-v3-turbo on the Apple GPU (mlx-whisper) fixed them and is *faster* than small.en on the CPU. The vocabulary goes into Whisper's initial prompt, which only holds ~220 tokens, so the list is capped (~57 terms) with your most-used terms last. A `replacements` map handles words it still mishears, and the cleanup step restores vocabulary words the LLM respells.
+
+---
+
 ## Final result
 
-- Press `ctrl+shift` anywhere → waveform pill appears → speak (any length) → press again → clean text lands at your cursor in ~1s.
-- 100% offline: faster-whisper `tiny.en` for STT, `qwen3:4b-instruct` via Ollama for cleanup.
+- Press `ctrl+shift` anywhere → waveform pill appears → speak (any length) → press again → clean, punctuated text with paragraphs lands at your cursor in ~2-3s.
+- 100% offline: Whisper large-v3-turbo on the Apple GPU (mlx-whisper) with a custom vocabulary for STT, `qwen3:4b-instruct` via Ollama for cleanup.
+- Follows your mic (AirPods, built-in, external) and recovers by itself.
 - Runs at login, menu bar 🎙️, zero subscription.
