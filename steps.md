@@ -131,6 +131,16 @@ Add a bunch of keywords I use as a data scientist, AI engineer and AI consultant
 
 ---
 
+## Prompt 9 — repeated phrases at the end of long dictations
+
+```
+I keep getting glitches at the end of longer transcriptions: after transcribing what I said, it repeats the same phrase over and over ("What do you think? What do you think?..."). Latency also got worse. Look into this.
+```
+
+> What it found: Whisper's classic repetition loop. On audio longer than 30s, Whisper feeds each window's text into the next, so one bad window loops to the end (and turning that off drops the vocabulary prompt after the first window). The loop also made the cleanup guard reject the LLM's output and retry, which added the latency. The fix: split long recordings at natural pauses with Silero VAD into <=28s chunks, transcribe each one with the vocabulary prompt and `condition_on_previous_text=False`, and collapse any phrase repeated 3+ times as a safety net. A 59s dictation went from 12.4s (with the loop) to 4.1s.
+
+---
+
 ## Final result
 
 - Press `ctrl+shift` anywhere → waveform pill appears → speak (any length) → press again → clean, punctuated text with paragraphs lands at your cursor in ~2-3s.
